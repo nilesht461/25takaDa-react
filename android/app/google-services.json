@@ -1,0 +1,147 @@
+{
+  "project_info": {
+    "project_number": "135916562209",
+    "firebase_url": "https://pachistaka.firebaseio.com",
+    "project_id": "pachistaka",
+    "storage_bucket": "pachistaka.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135916562209:android:4bae33a2c170c96d000060",
+        "android_client_info": {
+          "package_name": "com.twentyfivetaka.delivery"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHBVD7YA2ZMZl6Ogq67KVP_0pqcYiCDk4"
+        },
+        {
+          "current_key": "AIzaSyAAgBH68j3wkJEYFFURaSRChsvuNztyH_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135916562209:android:1885087127c639c6000060",
+        "android_client_info": {
+          "package_name": "network.dropshop.leadgen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "135916562209-ji5k2ih0v6k4a54ha6rqrfgdnefnd1in.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "network.dropshop.leadgen",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHBVD7YA2ZMZl6Ogq67KVP_0pqcYiCDk4"
+        },
+        {
+          "current_key": "AIzaSyAAgBH68j3wkJEYFFURaSRChsvuNztyH_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:135916562209:android:1d6afbd67e03eeb3000060",
+        "android_client_info": {
+          "package_name": "network.dropshop.pachistaka"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "135916562209-9cijsablf4a631anr3o8mg10nih37ja3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "network.dropshop.pachistaka",
+            "certificate_hash": "d4c37c90cd8b9fda083503c5e09ebbe5650ea484"
+          }
+        },
+        {
+          "client_id": "135916562209-h1ib6pj2r8ihuveudlmrtm915n0fn0a3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "network.dropshop.pachistaka",
+            "certificate_hash": "4cbed3ec6dd444a1b69c53178cdb729e19567157"
+          }
+        },
+        {
+          "client_id": "135916562209-hq1uc9en619ar1h7efrug09utap5h13b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "network.dropshop.pachistaka",
+            "certificate_hash": "002bbce84dc4a27ec71e076a4258d8dc052382a2"
+          }
+        },
+        {
+          "client_id": "135916562209-kj33g6jr3svts500p48vkm9rg6om890i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "network.dropshop.pachistaka",
+            "certificate_hash": "f7c3e0e287af0a0852304a50115fe266630db7d6"
+          }
+        },
+        {
+          "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCHBVD7YA2ZMZl6Ogq67KVP_0pqcYiCDk4"
+        },
+        {
+          "current_key": "AIzaSyAAgBH68j3wkJEYFFURaSRChsvuNztyH_A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "135916562209-l8pvm8lkoeg1fe6h1k2mp16q88ktctva.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
