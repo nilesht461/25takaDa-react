@@ -48,6 +48,13 @@ class PhoneAuthScreen extends Component {
           alert('Invalid Phone Number')
         }
       }
+      changeNumber = () => {
+        this.setState({phone: '',
+        confirmResult: null,
+        verificationCode: '',
+        userId: '',
+        showBusy: false})
+      }
       handleVerifyCode = () => {
         // Request for OTP verification
         this.setState({showBusy: true})
@@ -85,11 +92,19 @@ class PhoneAuthScreen extends Component {
         }}
         maxLength={6}
         />
+        <View style={{flexDirection:'row'}}>
         <TouchableOpacity
-        style={[styles.themeButton, { marginTop: 20 }]}
-        onPress={this.handleVerifyCode}>
-        <Text style={styles.themeButtonTitle}>Verify Code</Text>
+        style={[styles.button, { marginTop: 20,flex:1,backgroundColor:'white',borderWidth:1 }]}
+        onPress={this.handleSendCode}>
+        <Text style={[styles.themeButtonTitle,{color:'black'}]}>Resend OTP</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+        style={[styles.button, { marginTop: 20,flex:1 }]}
+        onPress={this.handleVerifyCode}>
+        <Text style={styles.themeButtonTitle}>Verify</Text>
+        </TouchableOpacity>
+        </View>
+        <Text onPress={() => this.changeNumber()} style={{color:'blue',marginVertical:50,textAlign:'center'}}>Change Number -> </Text>
         </View>
         )
         }
@@ -121,7 +136,7 @@ class PhoneAuthScreen extends Component {
             : this.handleSendCode
             }>
             <Text style={styles.themeButtonTitle}>
-              Send Code
+              GET OTP
             </Text> 
             </TouchableOpacity>
             </View> 
@@ -159,11 +174,19 @@ class PhoneAuthScreen extends Component {
       height: 50,
       alignItems: 'center',
       justifyContent: 'center',
+      backgroundColor: '#062b3d',
+      borderRadius: 5
+    },
+    button: {
+      marginHorizontal:20,
+      height: 50,
+      alignItems: 'center',
+      justifyContent: 'center',
       backgroundColor: 'black',
       borderRadius: 5
     },
     themeButtonTitle: {
-      fontSize: 24,
+      fontSize: 15,
       fontWeight: 'bold',
       color: '#fff'
     },

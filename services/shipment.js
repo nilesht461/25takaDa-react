@@ -3,16 +3,16 @@ import axios from 'axios';
 let rootDB = firestore().collection('debug').doc('demo');
 export async function getShipments(uid, type,startTime,endTime) {
     console.log(startTime,endTime)
-    return rootDB.collection('shipments').where('driverId', '==', uid).where('status', '==', type).where('timestamp','>=',startTime).where('timestamp','<=',endTime).orderBy('timestamp', 'desc').get();
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', type).where('timestamp','>=',startTime).where('timestamp','<=',endTime).orderBy('timestamp', 'desc').get();
 }
 export async function getTotalShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
 }
 export async function getFinishedShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where('status', '==', 'FINISHED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', 'FINISHED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
 }
 export async function getActiveShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where('status', '==', 'ASSIGNED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', 'ASSIGNED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
 }
 export async function getOrderDetails(id) {
     return rootDB

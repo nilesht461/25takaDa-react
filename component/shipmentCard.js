@@ -75,7 +75,14 @@ const ShipmentCard = ({ trips, navigation }) => {
                 <Text style={styles.number} onPress={() => Linking.openURL(`tel:${item.shop.contacts[0].phone}`)}>{item.shop.contacts[0].phone}</Text>
                 <TouchableOpacity onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=' + item.shop.location.lat + ',' + item.shop.location.lng, '_system')}><Icon style={styles.icon} name="location-arrow"></Icon></TouchableOpacity>
             </View>
-
+            {item.dsrName && item.dsrNumber ? 
+            <View style={{flexDirection: 'row',marginBottom:7}}>
+                <Text style={styles.dsr}>Sales Exec:- </Text>
+                <Text style={styles.dsr1} >{item.dsrName}</Text>
+                <TouchableOpacity style={{paddingHorizontal:4,borderWidth:1,borderRadius:5}} onPress={() => Linking.openURL(`tel:${item.dsrNumber}`)} >
+                <Icon style={styles.call} name="phone" size={10} color="#062b3d" />
+                </TouchableOpacity>
+            </View> : null}
             <Text style={[styles.basic,item.status == 'ASSIGNED' ? styles.active: item.status == 'FINISHED' ? styles.finished : styles.canceled ]} >{item.status}</Text>
         </Card>
         )
@@ -161,6 +168,15 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: "90%",
         left: "40%"
+    },
+    dsr:{
+        fontSize:15,
+        color: 'grey'
+    },
+    dsr1: {
+        fontSize:15,
+        marginHorizontal:5,
+        color:'#062b3d'
     },
     basic: {
         fontSize: 13,
