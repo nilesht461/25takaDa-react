@@ -1,36 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { TouchableOpacity } from 'react-native';
+import {getFinishedShipmentsByDate, getOrderDetails, getShipments, getShopDetails,getActiveShipmentsByDate} from '../services/shipment';
 import { ScrollView } from 'react-native';
 import { View, StyleSheet, Text, FlatList,ToastAndroid } from 'react-native';
 import { Card, Input,ListItem,BottomSheet } from 'react-native-elements';
 import { withOrientation } from 'react-navigation';
-import { getOrderItems } from '../services/shipment'
+import { getOrderItems,getDAappUtils } from '../services/shipment'
 import Geolocation from '@react-native-community/geolocation';
 import {updateDelivery} from '../services/shipment';
+import { useDispatch,useSelector } from 'react-redux';
+import auth from '@react-native-firebase/auth';
 import moment from 'moment';
+import Spinner from 'react-native-loading-spinner-overlay';
+import {updateCount, updateTrips} from '../services/helper';
 const OrderDetails = ({ navigation }) => {
     const trip = navigation.getParam('data', {});
+    const state = useSelector(state => state);
     let showPayLater = false;
     let [products, setProducts] = useState([]);
+    const [user,setUser] = useState(auth().currentUser);
     let [cancelReason,setCancelReason] = useState('');
     const [isVisible, setIsVisible] = useState(false);
-    const list = [
-        {title:'order canceled',
+    let [da_app_utils,setDAapputils] = useState({});
+    const dispatch = useDispatch();
+        const list = [
+        {title:'Cancel Order',
         onPress : () => {
             setCancelReason('CANCELED');
             markOrderCancel('CANCELED')
             setIsVisible(false);
         }
         },
-        { title: 'Shop closed',
+        { title: 'Shop Closed',
         onPress : () => {
             setCancelReason('SHOP_CLOSED');
             markOrderCancel('SHOP_CLOSED');
             setIsVisible(false);
         } 
         },
-        { title: 'Not attempted',
+        { title: 'Not Attempted',
         onPress : () => {
             setCancelReason('NOT_ATTEMPTED');
             markOrderCancel('NOT_ATTEMPTED');
@@ -45,7 +54,11 @@ const OrderDetails = ({ navigation }) => {
         },
     ];
     useEffect(async () => {
+      
        let  productData = await getOrderItems(trip.order.orderId);
+       let da_app_util_data = await getDAappUtils();
+       da_app_utils = da_app_util_data.data();
+       setDAapputils(da_app_utils);
         productData.forEach(element => {
             products.push(element.data());
             setProducts([...products]);
@@ -71,12 +84,59 @@ const OrderDetails = ({ navigation }) => {
             updateOrder(data, sdata)
             ToastAndroid.showWithGravity(
                 `Order status  marked as ${status}`,
-                ToastAndroid.LONG,
+                ToastAndroid.SHORT,
                 ToastAndroid.CENTER
               );
+            updateState('cancelled')
             navigation.goBack();
+            
         })
     }
+    const updateState=(type) => {
+        let index = state.trips.activeTrips.findIndex(item => {
+            return item.orderNo == trip.orderNo;
+        })
+        if(type == 'cancelled') {
+        state.trips.activeTrips[index].status = 'CANCELED';
+        state.trips.cancelledTrips = [state.trips.activeTrips[index],...state.trips.cancelledTrips ];
+        state.trips.activeTrips.splice(index,1);
+        let trips = {
+            'activeTrips':state.trips.activeTrips,
+            'finishedTrips': state.trips.finishedTrips,
+            'cancelledTrips':  state.trips.cancelledTrips,
+            'visibleTrips': state.trips.activeTrips
+        }
+        console.log(trips)
+        dispatch({type: 'updateTrips',payload:{trips:trips}})
+        console.log(state.count.finishedTrips)
+        let count =  {
+            'activeTrips': state.count.activeTrips -1,
+            'cancelledTrips': state.count.cancelledTrips + 1,
+            'finishedTrips': state.count.finishedTrips
+        }
+        dispatch({type: 'updateCount',payload:{count:count}})
+    }
+    if(type == 'finished') {
+        state.trips.activeTrips[index].status = 'FINISHED';
+        state.trips.finishedTrips = [state.trips.activeTrips[index],...state.trips.finishedTrips];
+        state.trips.activeTrips.splice(index,1);
+        let trips = {
+            'activeTrips':state.trips.activeTrips,
+            'finishedTrips': state.trips.finishedTrips,
+            'cancelledTrips':  state.trips.cancelledTrips,
+            'visibleTrips': state.trips.activeTrips
+        }
+        console.log(trips)
+        dispatch({type: 'updateTrips',payload:{trips:trips}})
+        console.log(state.count.finishedTrips)
+        let count =  {
+            'activeTrips': state.count.activeTrips -1,
+            'cancelledTrips': state.count.cancelledTrips,
+            'finishedTrips': state.count.finishedTrips + 1
+        }
+        dispatch({type: 'updateCount',payload:{count:count}})
+    }
+}
     const renderItems = ({ item }) => {
         return (<View style={styles.item}>
             <Text style={styles.itemName}>{item.name}</Text>
@@ -91,11 +151,11 @@ const OrderDetails = ({ navigation }) => {
     const updateOrder = (data, sdata) =>  {
         updateDelivery([], data,sdata,trip.order)
       }
-    const   markDelivered = () => {
+    const   markDelivered = async() => {
         if (trip.order.paymentStatus === 'COD' || trip.order.pendingAmount > trip.order.creditUsed) {
-            navigation.navigate('Payment', { data: trip, showPayLater: showPayLater })
+            navigation.navigate('Payment', { data: trip, showPayLater: showPayLater,da_app_utils : da_app_utils })
         } else {
-          Geolocation.getCurrentPosition((resp) => {
+          Geolocation.getCurrentPosition(async(resp) => {
             let location = {};
             location.lat =  resp.coords.latitude;
             location.lng = resp.coords.longitude
@@ -110,14 +170,16 @@ const OrderDetails = ({ navigation }) => {
               location: location
             }
             updateOrder(data, sdata);
-            navigation.goBack()
+            updateState('finished')
+            ToastAndroid.showWithGravity(
+                `Order successfully  marked as Delivered`,
+                ToastAndroid.LONG,
+                ToastAndroid.CENTER
+              );
+            
+            navigation.navigate('Trips');
+
           })
-          ToastAndroid.showWithGravity(
-            `Order successfully  marked as Delivered`,
-            ToastAndroid.LONG,
-            ToastAndroid.CENTER
-          );
-        navigation.navigate('Trips');
         }
       }
     return (
@@ -127,8 +189,8 @@ const OrderDetails = ({ navigation }) => {
                 <Card.Divider></Card.Divider>
                 <Text style={styles.name}>{trip.shop.name}</Text>
                 <Text style={styles.address}>{trip.order.deliveryAddress.line1},{trip.order.deliveryAddress.landmark},{trip.order.deliveryAddress.city},{trip.order.deliveryAddress.state},{trip.order.deliveryAddress.pincode}</Text>
-                {trip.order.creditUsed ? <Text style={styles.payment}>Credit used :- ₹{Math.floor(trip.order.creditUsed).toFixed(0)}</Text> : null}
-                {trip.order.paymentStatus == 'COD' || trip.order.pendingAmount > trip.order.creditUsed ?
+                {trip.order.creditUsed && trip.status =='ASSIGNED' ? <Text style={styles.payment}>Credit used :- ₹{Math.floor(trip.order.creditUsed).toFixed(0)}</Text> : null}
+                {trip.order.paymentStatus  == 'COD' && trip.status =='ASSIGNED'  || trip.order.pendingAmount > trip.order.creditUsed && trip.status =='ASSIGNED'  ?
                     <Text style={styles.payment}>Collect on Delivery :- ₹{Math.floor(trip.order.receivableAmount - trip.order.creditUsed).toFixed(0)}</Text> : null
                 } 
             </Card>
@@ -152,7 +214,7 @@ const OrderDetails = ({ navigation }) => {
                 />
                     : <ActivityIndicator size="large" color="#062b3d"></ActivityIndicator>}
             </Card>
-            {products.length ? <View style={{ flexDirection: 'row', marginVertical: 10 }}>
+            {products.length && trip.status == 'ASSIGNED' ? <View style={{ flexDirection: 'row', marginVertical: 10 }}>
                 <TouchableOpacity onPress={() =>  setIsVisible(true)} style={[styles.button]}><Text style={styles.buttonText}>CANCEL</Text></TouchableOpacity>
                 <TouchableOpacity onPress={() => markDelivered()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>DELIVER</Text></TouchableOpacity>
             </View>
@@ -224,6 +286,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: 'bold',
         letterSpacing: 1.1
-    }
+    },
+    spinnerTextStyle: {
+        color: '#FFF'
+      },
 })
 export default OrderDetails;

@@ -8,10 +8,12 @@ import AuthStack from '../routes/authStack';
 import tripStack from '../routes/tripStack';
 import collectionStack from './collectionStack'
 import  notVerified from '../screens/notVerified';
+import profileStack from './profileStack';
 const rootTabNavigation = createBottomTabNavigator(
   {
     "Trips": tripStack,
     "Collection": collectionStack,
+    "Profile" : profileStack
   },
   {
     defaultNavigationOptions: ({ navigation }) => ({
@@ -26,6 +28,8 @@ const rootTabNavigation = createBottomTabNavigator(
           // You can check the implementation below.
         } else if (routeName === 'Collection') {
           iconName = focused ? 'rupee' : 'rupee';
+        }  else if (routeName === 'Profile') {
+          iconName = focused ? 'user' : 'user';
         }
 
         // You can return any component that you like here!

@@ -6,15 +6,15 @@ import auth from '@react-native-firebase/auth';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import PaymentCard from '../component/paymentCard';
 import _ from "lodash";
+import globalDate from '../services/date'
 import moment from 'moment';
 import DateTimePicker from '@react-native-community/datetimepicker';
 const collection = ({ navigation }) => {
     const [date, setDate] = useState(moment().format("DD/MM/YYYY"));
-    let [startTime, setStartTime] = useState(new Date());
-    let [endTime, setEndTime] = useState(new Date());
     const [user, setUser] = useState(auth().currentUser);
     const [showDatePicker, setShowDatePicker] = useState(false);
     let [paymentInfo, setPaymentInfo] = useState([]);
+    let [showNoPaymentFlag,setShowNoPaymentFlag] = useState(false);
     let [collection, setCollection] = useState({ 'total': 0, 'upi': 0, 'cash': 0, 'cheque': 0 });
     useEffect(() => {
         updatePaymentData()
@@ -24,20 +24,21 @@ const collection = ({ navigation }) => {
         return unsubscribe;
       }, [navigation]);
     const updatePaymentData = async () => {
-        setDate(moment(startTime).format("DD/MM/YYYY"))
-        startTime.setHours(0, 0, 0, 0);
-        endTime.setHours(23, 59, 59, 59);
+        globalDate.collectionDate.startTime.setHours(0, 0, 0, 0);
+        globalDate.collectionDate.endTime.setHours(23, 59, 59, 59);
         paymentInfo = [];
         setPaymentInfo([]);
+        let paymentData = await getTotalPaymentByDate(user.uid,globalDate.collectionDate.startTime,globalDate.collectionDate.endTime);
+        if(paymentData.docs.length == 0) {
+            setShowNoPaymentFlag(true);
+        }
         setCollection({ 'total': 0, 'upi': 0, 'cash': 0, 'cheque': 0 })
-        let paymentData = await getTotalPaymentByDate(user.uid, startTime, endTime);
+        collection = { 'total': 0, 'upi': 0, 'cash': 0, 'cheque': 0 }
         paymentData.docs.forEach(async (element) => {
             let tempObj = {};
             tempObj = element.data();
             let shopInfo = await getShopDetails(element.data().shopId);
-            shopInfo.forEach(element => {
-                tempObj['shop'] = element.data();
-            })
+                tempObj['shop'] = shopInfo.data();
             collection['total'] = collection['total'] + element.data().amount;
             if (element.data().mode == 'UPI') {
                 collection['upi'] = collection['upi'] + element.data().amount;
@@ -50,21 +51,18 @@ const collection = ({ navigation }) => {
             }
             paymentInfo.push(tempObj);
             setPaymentInfo([...paymentInfo]);
-            console.log(paymentInfo);
             setCollection({ ...collection });
         })
     }
     const updateDate = () => {
         setShowDatePicker(true);
-        console.log(new Date())
+        // console.log(new Date())
     }
     const onCalendarChange = (event, date) => {
     setShowDatePicker(false);
     if(date) {
-     startTime = _.cloneDeep(date);
-     setStartTime(startTime);
-     endTime = _.cloneDeep(date)
-     setEndTime(endTime);
+     globalDate.collectionDate.startTime = _.cloneDeep(date);
+     globalDate.collectionDate.endTime = _.cloneDeep(date)
      setDate(moment(date).format("DD/MM/YYYY"));
      updatePaymentData();
     } else {
@@ -89,11 +87,13 @@ const collection = ({ navigation }) => {
                 </View>
             </Card>
             {paymentInfo.length ? <PaymentCard    
-            style={{ flex: 0 }} paymentInfo={paymentInfo} navigation={navigation} /> : <ActivityIndicator size="large" color="#062b3d"></ActivityIndicator>}
+            style={{ flex: 0 }} paymentInfo={paymentInfo} navigation={navigation} /> : null}
+            {!showNoPaymentFlag && !paymentInfo.length ? <ActivityIndicator size="large" color="#062b3d"></ActivityIndicator> : null}
+            {showNoPaymentFlag ? <Text style={styles.emptyShipment}>No collection Data available !</Text>: null }
 
             {showDatePicker ? <DateTimePicker
                 testID="dateTimePicker"
-                value={startTime}
+                value={globalDate.collectionDate.startTime}
                 mode='date'
                 is24Hour={true}
                 display="calendar"
@@ -148,4 +148,10 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: 'white'
     },
+    emptyShipment: {
+        textAlign:'center',
+        marginVertical:'30%',
+        fontSize:17,
+        color:'#062b3d'
+    }
 })

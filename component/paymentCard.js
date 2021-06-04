@@ -8,13 +8,14 @@ const PaymentCard = ({ paymentInfo, navigation }) => {
         return (<Card containerStyle={styles.Card}>
             <Card.Title  style={styles.title}>{item.orderNo}</Card.Title>
             <Card.Divider></Card.Divider>
-            <Text style={styles.name} >{item.shop.name}</Text>
+            <Text style={styles.name} >{item.shop.name}</Text> 
             <Text style={styles.address}>{item.shop.address.line1},{item.shop.address.landmark},{item.shop.address.city},{item.shop.address.state},{item.shop.address.pincode}</Text>
             <View style={{flexDirection:'row'}}>
             <Text style={styles.number}>₹{item.amount}</Text>
             <Text style={styles.active}>{item.mode}</Text>
-            </View>
+          </View>
         </Card>
+        
         )
     }
     return (
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
         paddingVertical: 3,
         backgroundColor: 'green',
         color: 'white',
-        width: '18%',
+        width: 'auto',
         borderRadius: 5,
         flex: 0,
         textTransform: 'capitalize',

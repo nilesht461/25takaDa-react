@@ -11,12 +11,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchCamera } from 'react-native-image-picker';
 import { PermissionsAndroid } from 'react-native';
 import UploadPhoto from '../services/uploadPhoto';
+import {updateCount,updateTrips} from '../services/helper';
+import { useDispatch,useSelector } from 'react-redux';
 import {updateDelivery} from '../services/shipment';
+import Spinner from 'react-native-loading-spinner-overlay';
 import { addTransactions, updateQRCode, updateSignature, getUpiPaymentStatus } from '../services/shipment';
 const Payments = ({ navigation }) => {
     const trip = navigation.getParam('data', {});
+    const state = useSelector(state => state);
     let [txnId, setTxnId] = useState(null);
+    let [spinner,setSpinner] = useState(false);
+    const dispatch = useDispatch();
     const showPayLater = navigation.getParam('showPayLater', false);
+    const da_app_utils = navigation.getParam('da_app_utils', {});
+    // console.log(da_app_utils)
     const [user, setUser] = useState(auth().currentUser);
     let [saveLoader,setSaveLoader] = useState(false)
     const [showBusy, setShowBusy] = useState(false);
@@ -30,6 +38,8 @@ const Payments = ({ navigation }) => {
     let [paymentData, setPaymentData] = useState([]);
     let [chequeData, setChequeData] = useState({ number: '', bank: '', date: date, image: '' });
     let [barcode, setBardCode] = useState(null);
+    let [chequeDate,setChequeDate] = useState(moment(new Date()).toDate());
+    console.log(chequeDate)
     const addPayment = async () => {
         if (amount <= 0) {
             alert("enter a valid amount")
@@ -59,8 +69,8 @@ const Payments = ({ navigation }) => {
             }
             paymentInfo["cheque"] = {
                 bank: chequeData.bank.toUpperCase(),
-                number: chequeData.Number,
-                date: date,
+                number: chequeData.number,
+                date: chequeDate,
                 image: chequeData.image
             }
             paymentInfo["trxnStatus"] = "PENDING";
@@ -73,7 +83,7 @@ const Payments = ({ navigation }) => {
                 return;
             }
             let upiData = await getUpiPaymentStatus(txnId);
-            console.log(upiData);
+            // console.log(upiData);
             if (upiData.txStatus == 'SUCCESS') {
                 if (inputAmount == Math.floor(trip.order.receivableAmount - trip.order.creditUsed)) {
                     alert('full payment made via UPI');
@@ -96,14 +106,14 @@ const Payments = ({ navigation }) => {
         setAmount(amount - inputAmount);
         paymentData.push(paymentInfo);
         setPaymentData([...paymentData]);
-        console.log(paymentInfo);
+        // console.log(paymentInfo);
         setChequeData({ number: '', bank: '', date: '', image: '' })
     }
     const removePayment = (p) => {
         const index = paymentData.indexOf(p)
         if (index > -1) {
             amount = Number(amount) + Number(p.amount)
-            console.log(amount)
+            // console.log(amount)
             setAmount(`${amount}`)
             setInputAmount(`${amount}`)
             paymentData.splice(index, 1)
@@ -111,13 +121,20 @@ const Payments = ({ navigation }) => {
     }
     const onCalendarChange = (event, date) => {
         setShowDatePicker(false);
+        setChequeDate(moment(date).toDate());
+        // console.log(moment(date).toDate());
         setDate(moment(date).format("DD/MM/YYYY"));
     }
     const takePicture = async () => {
         let options = {
             mediaType: 'photo',
             cameraType: 'back',
-            quality: 0.3,
+            quality: 0.7,
+            maxWidth: 1240,
+            maxHeight: 780,
+            storageOptions: {
+              skipBackup: true
+            }
 
         };
         try {
@@ -187,14 +204,15 @@ const Payments = ({ navigation }) => {
             "orderId": value,
             "orderAmount": `${inputAmount}`,
             "orderCurrency": "INR",
-            "customerName": `${trip.order.shopName} | ${trip.order.orderId}`,
+            "customerName": `${trip.order.shopName} | ${trip.orderNo}`,
             "customerPhone": trip.shop.contacts[0].phone,
-            "customerEmail": "contactus@dropshop.network",
-            "notifyUrl": "https://us-central1-pachistaka.cloudfunctions.net/CFPaymentAppWH",
+            "customerEmail": da_app_utils.upi.email,
+            "notifyUrl": da_app_utils.upi.notifyUrl,
             "responseType": "json",
             "paymentOption": "upi",
             "upiMode": "qrcode"
         }
+        // console.log(data)
         let signature = await updateSignature(data);
         getBarCode(signature, value)
     }
@@ -205,10 +223,10 @@ const Payments = ({ navigation }) => {
             "orderId": value,
             "orderAmount": `${inputAmount}`,
             "orderCurrency": "INR",
-            "customerName": `${trip.order.shopName} | ${trip.order.orderId}`,
+            "customerName": `${trip.order.shopName} | ${trip.orderNo}`,
             "customerPhone": trip.shop.contacts[0].phone,
-            "customerEmail": "contactus@dropshop.network",
-            "notifyUrl": "https://us-central1-pachistaka.cloudfunctions.net/CFPaymentAppWH",
+            "customerEmail": da_app_utils.upi.email,
+            "notifyUrl": da_app_utils.upi.notifyUrl,
             "responseType": "json",
             "paymentOption": "upi",
             "upiMode": "qrcode",
@@ -227,13 +245,14 @@ const Payments = ({ navigation }) => {
             }
         }
         totalAmount = Math.round(totalAmount);
+        setSaveLoader(true)
         Alert.alert(
             "25taka",
             `Please make sure that you have  collected ₹${totalAmount}`,
             [
                 {
                     text: "Cancel",
-                    onPress: () => console.log("Cancel Pressed"),
+                    onPress: () => setSaveLoader(false),
                     style: "cancel"
                 },
                 {
@@ -252,21 +271,48 @@ const Payments = ({ navigation }) => {
                                 endTime: moment().toDate(),
                                 location: location
                             }
-                            console.log(paymentData);
+                            // console.log(paymentData);
                             await updateDelivery(paymentData, data, shipmentData, trip.order);
                             // setSaveLoader(false);
                             ToastAndroid.showWithGravity(
-                                `Order successfully  marked as Delivered`,
+                                `OrderNo. ${trip.orderNo} successfully  marked as Delivered`,
                                 ToastAndroid.LONG,
                                 ToastAndroid.CENTER
                               );
-                            navigation.navigate('Trips')
+                            setSaveLoader(false);
+                            updateState('finished')
+                            navigation.navigate('Trips');
                         })
                     }
                 }
             ])
 
     }
+    const updateState=(type) => {
+        let index = state.trips.activeTrips.findIndex(item => {
+            return item.orderNo == trip.orderNo;
+        })
+    if(type == 'finished') {
+        state.trips.activeTrips[index].status = 'FINISHED';
+        state.trips.finishedTrips = [state.trips.activeTrips[index],...state.trips.finishedTrips];
+        state.trips.activeTrips.splice(index,1);
+        let trips = {
+            'activeTrips':state.trips.activeTrips,
+            'finishedTrips': state.trips.finishedTrips,
+            'cancelledTrips':  state.trips.cancelledTrips,
+            'visibleTrips': state.trips.activeTrips
+        }
+        console.log(trips)
+        dispatch({type: 'updateTrips',payload:{trips:trips}})
+        console.log(state.count.finishedTrips)
+        let count =  {
+            'activeTrips': state.count.activeTrips -1,
+            'cancelledTrips': state.count.cancelledTrips,
+            'finishedTrips': state.count.finishedTrips + 1
+        }
+        dispatch({type: 'updateCount',payload:{count:count}})
+    }
+}
     return (
         <View style={{ flexDirection: 'column', flex: 1 }}>
             <Card containerStyle={styles.card}>
@@ -302,12 +348,15 @@ const Payments = ({ navigation }) => {
                             }
                             {selectedPaymentMethod == 'CHEQUE' &&
                                 <View>
-                                    <Input placeholder="Enter Cheque number" name="chequeNumber" value={chequeData.number} onChangeText={(e) => handleFormChange(e, 'number')} leftIcon={<Icon name='money' size={18} color='grey' />}
+                                    <Input  label="Enter Cheque number" placeholder="Enter Cheque number" labelStyle={styles.label} name="chequeNumber" value={chequeData.number} onChangeText={(e) => handleFormChange(e, 'number')} leftIcon={<Icon name='money' size={18} color='grey' />}
                                     />
-                                    <Input placeholder="Enter Bank name" name="BankName" value={chequeData.bank} onChangeText={(e) => handleFormChange(e, 'bank')} leftIcon={<Icon name='bank' size={18} color='grey' />}
+                                    <Input labelStyle={styles.label}  label="Enter Bank name" placeholder="Enter Bank name" name="BankName" value={chequeData.bank} onChangeText={(e) => handleFormChange(e, 'bank')} leftIcon={<Icon name='bank' size={18} color='grey' />}
                                     />
                                     <View style={{ flexDirection: 'row' }}>
+                                        <View style={{flexDirection:'column'}}>
+                                         <Text style={{color:'grey',marginLeft: 15,marginBottom:5}}>Cheque Date</Text>
                                         <Text style={styles.date} onPress={() => { setShowDatePicker(true) }}>{date}<Icon style={styles.calendar} name="calendar"></Icon></Text>
+                                        </View>
                                         <TouchableOpacity onPress={() => takePicture()} style={[styles.takePicture, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>Upload Image</Text></TouchableOpacity>
                                     </View>
                                     {showBusy == true ? <ActivityIndicator style={styles.loading} size="large" color="#3880ff" /> : null}
@@ -342,8 +391,7 @@ const Payments = ({ navigation }) => {
                 {selectedPaymentMethod == 'UPI' && amount > 0 && !verify ? <TouchableOpacity onPress={() => addPayment()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>VERIFY</Text></TouchableOpacity> :
                     selectedPaymentMethod == 'UPI' && verify ? <ActivityIndicator style={{ textAlign: 'center', marginHorizontal: '40%' }} size="large" color="black" /> : null}
                 {selectedPaymentMethod != 'UPI' && amount > 0 && <TouchableOpacity onPress={() => addPayment()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>ADD</Text></TouchableOpacity>}
-                {amount <= 0 && !saveLoader ? <TouchableOpacity onPress={() => saveData()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>SAVE</Text></TouchableOpacity> : null}
-                { saveLoader ?  <ActivityIndicator style={{ textAlign: 'center', marginHorizontal: '40%' }} size="#062b3d" color="black" /> : null}
+                {amount <= 0 && !saveLoader && <TouchableOpacity onPress={() => saveData()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>SAVE</Text></TouchableOpacity>}
             </View>
             {showDatePicker ? <DateTimePicker
                 testID="dateTimePicker"
@@ -352,7 +400,7 @@ const Payments = ({ navigation }) => {
                 is24Hour={true}
                 display="calendar"
                 is24Hour={true}
-                maximumDate={new Date()}
+                minimumDate={new Date()}
                 onChange={onCalendarChange}
             /> : null}
         </View>
@@ -383,6 +431,9 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: 'bold',
         letterSpacing: 1.1
+    },
+    label: {
+        fontSize:12
     },
     card: {
         borderRadius: 10,
@@ -415,7 +466,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         marginHorizontal: 30,
         borderRadius: 5,
-        paddingVertical: 3
+        marginVertical:10,
+        paddingVertical: 3,
+        height:27
     },
     chequeImage: {
         height: 300,

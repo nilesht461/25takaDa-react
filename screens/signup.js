@@ -3,9 +3,12 @@ import {StyleSheet,View,TextInput,Button,Text,Image,ActivityIndicator} from 'rea
 import {TouchableOpacity} from 'react-native-gesture-handler';
 import {addUser,getUserById,getUserByNumber} from '../services/user';
 import auth from '@react-native-firebase/auth';
+import DeviceInfo from 'react-native-device-info';
+import firestore from '@react-native-firebase/firestore';
 const SignUp  = (props) => {
     const [formdata,setFormData] = useState({firstName:'',lastName:'',leaderNumber:''})
     const [showBusy,setShowBusy] = useState(true);
+    const [saveloader,setSaveloader] = useState(false)
     const onChangeText = (name,text)=> {
         setFormData({
             ...formdata,
@@ -14,7 +17,15 @@ const SignUp  = (props) => {
         console.log(formdata);
         };
     const saveData = async() => {
+      let deviceObj = {};
+      let manufacturer = await DeviceInfo.getManufacturerSync();
+      let model = await DeviceInfo.getModel();
+      deviceObj.model = `${manufacturer} ${model}`;
+      deviceObj.os = await DeviceInfo.getApiLevel();
+      deviceObj.androidVersion = await DeviceInfo.getSystemVersion();
+      deviceObj.deviceId = await DeviceInfo.getAndroidId();
             if(formdata.firstName != '' && formdata.lastName != '') {
+              setSaveloader(true)
               let user = auth().currentUser;
                 let obj = {
                     "userId": user.uid,
@@ -23,11 +34,16 @@ const SignUp  = (props) => {
                     "lastName" : formdata.lastName,
                     "role" : 'DRIVER',
                     "verified" : true,
-                    "createdAt" : `${Date.now()}`
+                    "createdAt" : `${Date.now()}`,
+                    'deviceInfo':[deviceObj]
 
                 }
                 await addUser(obj);
+                setSaveloader(false)
                 props.navigation.navigate('App')
+            }
+            else {
+              alert('please enter the valid fields')
             }
     }
     useEffect(async() =>  {
@@ -36,8 +52,16 @@ const SignUp  = (props) => {
         let users = await getUserById(user.uid);
         console.log(users.docs.length,"12434")
         if(users.docs.length) {
-          users.docs.forEach(element => {
+          users.docs.forEach(async(element) => {
             if(element.data().verified == true && element.data().role == 'DRIVER') {
+              let deviceObj = {};
+              let manufacturer = await DeviceInfo.getManufacturerSync();
+              let model = await DeviceInfo.getModel();
+              deviceObj.model = `${manufacturer} ${model}`;
+              deviceObj.os = await DeviceInfo.getApiLevel();
+              deviceObj.androidVersion = await DeviceInfo.getSystemVersion();
+              deviceObj.deviceId = await DeviceInfo.getAndroidId();
+            await addUser({"userId": user.uid,'deviceInfo': firestore.FieldValue.arrayUnion(deviceObj)});
             props.navigation.navigate('App');
             setShowBusy(false);
             }
@@ -71,9 +95,12 @@ const SignUp  = (props) => {
           value={formdata.lastName}
           onChangeText={val => onChangeText('lastName', val)}
         />
+          {!saveloader ? 
           <TouchableOpacity style={styles.saveButton}>
                                 <Text style={styles.saveLeadText} onPress={() => saveData()}>Sign up</Text>
            </TouchableOpacity>
+          :<ActivityIndicator size='large' color="#062b3d" /> 
+          }
       </View> }
       </View>
 
@@ -102,7 +129,7 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         padding:10,
-        backgroundColor:"black",
+        backgroundColor:"#062b3d",
         color:"white",
         marginTop:20,
         width:"50%",

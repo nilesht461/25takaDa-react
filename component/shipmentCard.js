@@ -2,29 +2,42 @@ import React,{useState} from 'react';
 import { View, StyleSheet, Text, FlatList, Linking, TouchableOpacity } from 'react-native';
 import { Card,BottomSheet } from 'react-native-elements';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import {getShopDetails} from '../services/shipment';
+import Spinner from 'react-native-loading-spinner-overlay';
 const ShipmentCard = ({ trips, navigation }) => {
     let [isVisible,setIsVisible] = useState(false);
     let [selectedTrip,setSelectedTrip] = useState(null);
     let [verification,setVerification] = useState({docVerify: true,handshake: true,shopImage: true});
+    const [spinner,setSpinner] = useState(false);
     const routeToDelivery = (trip) => {
         navigation.navigate('OrderDetails', { "data": trip })
       }
-    const onOrderClick = (trip) => {
+    
+    const onOrderClick = async(trip) => {
+        setSpinner(true);
         console.log('clicked');
         let aadharStatus =  '';
         let panStatus  =  '';
-        let selectedTrip = trip;
+        let shop =  await getShopDetails(trip.shop.shopId);
+        trip.shop = shop.data();
+        verfication = {docVerify: true,handshake: true,shopImage: true};
+        setVerification({...verification});
+        let selectedTrip = {...trip};
+        setSpinner(false);
+        // console.log(selectedTrip.shop.shopImage)
         setSelectedTrip(trip);
         if(selectedTrip.status == "FINISHED") {
           routeToDelivery(trip);
           return;
         }
-        if(!selectedTrip.shop.shopImage) {
+        if(!trip.shop.shopImage) {
+            // console.log('it ran ',trip.shop)
             setVerification({...verification,['shopImage']: false});
             setIsVisible(true);
             return;
         }
         if(!selectedTrip.shop.verified && selectedTrip.order.creditUsed !=0) {
+            verification.shopImage = true;
             setVerification({...verification,['docVerify']: false});
             setIsVisible(true);
             return
@@ -67,9 +80,9 @@ const ShipmentCard = ({ trips, navigation }) => {
     }
     const renderItems = ({ item }) => {
         return (<Card containerStyle={styles.Card}>
-            <Card.Title onPress={() => onOrderClick(item)} style={styles.title}>{item.orderNo}</Card.Title>
+            <TouchableOpacity><Card.Title onPress={() => onOrderClick(item)} style={styles.title}>{item.orderNo}</Card.Title></TouchableOpacity>
             <Card.Divider></Card.Divider>
-            <Text style={styles.name} onPress={() => { navigation.navigate('ShopDetail', { "data": item.shop }) }}>{item.shop.name}</Text>
+            <Text style={styles.name} onPress={() => { navigation.navigate('ShopDetail', { "data": item.shop,"orderNo":item.orderNo }) }}>{item.shop.name}</Text>
             <Text style={styles.address}>{item.order.deliveryAddress.line1},{item.order.deliveryAddress.landmark},{item.order.deliveryAddress.city},{item.order.deliveryAddress.state},{item.order.deliveryAddress.pincode}</Text>
             <View style={{ flexDirection: 'row',height:30 }}>
                 <Text style={styles.number} onPress={() => Linking.openURL(`tel:${item.shop.contacts[0].phone}`)}>{item.shop.contacts[0].phone}</Text>
@@ -80,7 +93,7 @@ const ShipmentCard = ({ trips, navigation }) => {
                 <Text style={styles.dsr}>Sales Exec:- </Text>
                 <Text style={styles.dsr1} >{item.dsrName}</Text>
                 <TouchableOpacity style={{paddingHorizontal:4,borderWidth:1,borderRadius:5}} onPress={() => Linking.openURL(`tel:${item.dsrNumber}`)} >
-                <Icon style={styles.call} name="phone" size={10} color="#062b3d" />
+                <Icon style={{marginTop:3}} name="phone" size={10} color="#062b3d" />
                 </TouchableOpacity>
             </View> : null}
             <Text style={[styles.basic,item.status == 'ASSIGNED' ? styles.active: item.status == 'FINISHED' ? styles.finished : styles.canceled ]} >{item.status}</Text>
@@ -93,9 +106,12 @@ const ShipmentCard = ({ trips, navigation }) => {
         let obj = {...selectedTrip};
         navigation.navigate('OrderDetails', { "data": obj })
     }
-    console.log(trips.length)
     return (
         <View>
+              <Spinner
+          visible={spinner}
+          textStyle={styles.spinnerTextStyle}
+        />
             <FlatList
                 //   refreshControl={
                 //     <RefreshControl
@@ -116,10 +132,10 @@ const ShipmentCard = ({ trips, navigation }) => {
             >
                 <View style={styles.bottomMenu}>
                 <Icon name="close" style={styles.close} onPress={() => {setIsVisible(false);setVerification({'docVerify': true,shopImage: true,handshake: true})}} size={24} color="#062b3d" />
-                    {!verification.shopImage ? <TouchableOpacity onPress={() => {setIsVisible(false);navigation.navigate('ShopDetail', { "data": selectedTrip.shop }) }} style={[styles.button, { backgroundColor: '#062b3d'}]}><Text style={styles.buttonText}>Upload Shop Image</Text>
+                    {!verification.shopImage ? <TouchableOpacity onPress={() => {setIsVisible(false);navigation.navigate('ShopDetail', { "data": selectedTrip.shop ,"orderNo":selectedTrip.orderNo}) }} style={[styles.button, { backgroundColor: '#062b3d'}]}><Text style={styles.buttonText}>Upload Shop Image</Text>
                     </TouchableOpacity>: null}
                     <View style={{flexDirection:'row'}}>
-                    {!verification.docVerify ? <TouchableOpacity onPress={() => { setIsVisible(false);navigation.navigate('ShopDetail', { "data": selectedTrip.shop }) }} style={[styles.button, { backgroundColor: '#062b3d',flex:1 }]}><Text style={styles.buttonText}>Upload Documents</Text>
+                    {!verification.docVerify ? <TouchableOpacity onPress={() => { setIsVisible(false);navigation.navigate('ShopDetail', { "data": selectedTrip.shop,"orderNo":selectedTrip.orderNo  }) }} style={[styles.button, { backgroundColor: '#062b3d',flex:1 }]}><Text style={styles.buttonText}>Upload Documents</Text>
                     </TouchableOpacity>: null}
                     {!verification.docVerify ? <TouchableOpacity onPress={() => {switchToPod()}} style={[styles.button, { backgroundColor: '#062b3d',flex:1 }]}><Text style={styles.buttonText}>Switch to POD</Text>
                     </TouchableOpacity>: null}
@@ -239,7 +255,10 @@ const styles = StyleSheet.create({
         marginHorizontal:"10%",
         marginVertical:'10%',
         fontWeight:'bold'
-    }
+    },
+    spinnerTextStyle: {
+        color: '#062b3d'
+      },
 })
 
 export default ShipmentCard;

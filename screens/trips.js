@@ -1,4 +1,4 @@
-import React, { useEffect, useState,useI } from 'react';
+import React, { useEffect, useState } from 'react';
 import {View,Text,StyleSheet,RefreshControl} from 'react-native';
 import { Card,Input,BottomSheet ,ButtonGroup} from 'react-native-elements';
 import {getFinishedShipmentsByDate, getOrderDetails, getShipments, getShopDetails,getActiveShipmentsByDate} from '../services/shipment';
@@ -10,83 +10,105 @@ import { ActivityIndicator } from 'react-native';
 import _ from "lodash";
 import globalDate from '../services/date';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSelector,useDispatch } from 'react-redux'
+import {updateCount, updateTrips} from '../services/helper';
+import Spinner from 'react-native-loading-spinner-overlay';
 const trips = ({navigation}) => {
+    const state = useSelector(state => state);
+    // console.log(state)
+    const dispatch = useDispatch();
     const [user,setUser] = useState(auth().currentUser);
     const [date, setDate] = useState(moment().format("DD/MM/YYYY"));
     const value = navigation.getParam('data', false);
     let [noShipmentFlag,setNoShipmentFlag] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     let [isVisible,setIsVisible] = useState(false);
-    let [allTrips,setTrips] = useState([]);
-    let [banner,setBanner]  = useState({'cancelled': 0 , 'active': 0, 'finished': 0})
+    let [spinner,setSpinner] = useState(false);
     let isFocused = navigation.isFocused(); 
-    const buttons = [`Active (${banner.active})`,`Finished (${banner.finished})`,`Cancelled (${banner.cancelled})`];
+    const buttons = [`Active (${ state.count.activeTrips})`,`Finished (${state.count.finishedTrips})`,`Cancelled (${state.count.cancelledTrips})`];
     const [selectedIndex,setSelectedIndex] = useState(0);
     useEffect(() => {
         loadData();
-        const unsubscribe = navigation.addListener('willFocus', () => {
-        allTrips = [];
-        setTrips([])
-        loadData();
-        });  
-        return unsubscribe;
       }, [navigation]);
     const loadData = async() => {
+        setNoShipmentFlag(false);
+        setSelectedIndex(0)
+        dispatch({type: 'updateCount',payload:{count:{'activeTrips' : 0,'finishedTrips':0,'cancelledTrips': 0 }}})
+        dispatch({type: 'updateTrips',payload:{trips:{'activeTrips' : [],'finishedTrips':[],'cancelledTrips': [],'visibleTrips':[] }}})
         await getallTripCounts();
         await getShipmentData('ASSIGNED');
-        setSelectedIndex(0)
+        setSpinner(true);
+        await  getShipmentData('FINISHED');
+        await getShipmentData('CANCELED');
+        setSpinner(false)
+        
     }
     const updateIndex  = (selectedIndex) => {
+        setNoShipmentFlag(false)
         setSelectedIndex(selectedIndex);
+        // console.log(state.trips.activeTrips.length)
         if(selectedIndex == 1) {
-          getShipmentData('FINISHED')
-        }
+            if(state.trips.finishedTrips.length == 0) {
+                setNoShipmentFlag(true)
+            }
+            let trips = {...state.trips,visibleTrips:state.trips.finishedTrips}
+            dispatch({type: 'updateTrips',payload:{trips:trips}})
+    }
         if(selectedIndex== 0) {
-            getShipmentData('ASSIGNED')
+            if(state.trips.activeTrips.length == 0) {
+                setNoShipmentFlag(true)
+            }
+            let trips = {...state.trips,visibleTrips:state.trips.activeTrips}
+            dispatch({type: 'updateTrips',payload:{trips:trips}})
         }
         if(selectedIndex== 2) {
-            getShipmentData('CANCELED')
+            if(state.trips.cancelledTrips.length == 0) {
+                setNoShipmentFlag(true)
+            }
+            let trips = {...state.trips,visibleTrips:state.trips.cancelledTrips}
+            dispatch({type: 'updateTrips',payload:{trips:trips}})
         }
       }
    const getallTripCounts = async() => {
             // setDate(moment(startTime).format("DD/MM/YYYY"))
-            allTrips = [];
-            setTrips([]);
-            setNoShipmentFlag(false)
-            globalDate.tripDate.startTime.setHours(0,0,0,0);
-            globalDate.tripDate.endTime.setHours(23,59,59,59);
-            let cancelledTrips = await getShipments(user.uid,'CANCELED',globalDate.tripDate.startTime,globalDate.tripDate.endTime);
-            let activeTrips =  await getActiveShipmentsByDate(user.uid,globalDate.tripDate.startTime,globalDate.tripDate.endTime);
-            let finishedTrips = await getFinishedShipmentsByDate(user.uid,globalDate.tripDate.startTime,globalDate.tripDate.endTime);
-            let banner = {
-                'cancelled' : cancelledTrips.docs.length,
-                'active': activeTrips.docs.length,
-                'finished': finishedTrips.docs.length
-            }
-            setBanner({...banner});
+            let count = await updateCount()
+            dispatch({type: 'updateCount',payload:{count:count}})
             
    }
    const getShipmentData = async(type) => {
-    setNoShipmentFlag(false)
-    let shipments = await getShipments(user.uid,type,globalDate.tripDate.startTime,globalDate.tripDate.endTime);
-    allTrips = [];
-    setTrips([]);
-    if(shipments.docs.length == 0) {
-        setNoShipmentFlag(true);
+    let trips = {};
+    if(type =='ASSIGNED') {
+        state.trips.activeTrips = await updateTrips(type);
+        if(state.trips.activeTrips.length == 0) {
+            setNoShipmentFlag(true)
+        }
+    trips = {
+        'activeTrips':state.trips.activeTrips,
+        'finishedTrips': state.trips.finishedTrips ? state.trips.finishedTrips: [],
+        'cancelledTrips': state.trips.cancelledTrips ? state.trips.cancelledTrips: [],
+        'visibleTrips': state.trips.activeTrips
     }
-    shipments.docs.forEach(async (element) => {
-        let trip = element.data();
-        let order  = await getOrderDetails(element.data().orderId);  
-        let shop =  await getShopDetails(element.data().shopId);
-        order.docs.forEach(res => {
-            trip['order'] = res.data();
-        });
-        shop.docs.forEach(res => {
-            trip['shop'] = res.data();
-        })
-        allTrips.push(trip)
-       setTrips([...allTrips])
-    });
+}
+    if(type =='FINISHED') {
+        state.trips.finishedTrips = await updateTrips(type);
+        trips = {
+            'activeTrips':state.trips.activeTrips,
+            'finishedTrips': state.trips.finishedTrips,
+            'cancelledTrips': state.trips.cancelledTrips ? state.trips.cancelledTrips: [],
+            'visibleTrips':state.trips.activeTrips
+        }
+        }
+        if(type =='CANCELED') {
+            state.trips.cancelledTrips = await updateTrips(type);;
+             trips = {
+                'activeTrips':state.trips.activeTrips,
+                'finishedTrips': state.trips.finishedTrips,
+                'cancelledTrips': state.trips.cancelledTrips,
+                'visibleTrips':state.trips.activeTrips
+            }
+            };
+    dispatch({type: 'updateTrips',payload:{trips:trips}})
+
    }
    const updateDate = () => {
        setShowDatePicker(true);
@@ -103,6 +125,9 @@ const trips = ({navigation}) => {
 }
     return (
         <View style={{flex:1}}>
+                 <Spinner
+          visible={spinner}
+        />
                 <Text onPress={() => updateDate()} style={styles.cardHeader}>{date}<Icon style={styles.calendar} name="calendar"></Icon></Text>
             <ButtonGroup
                 onPress={updateIndex}
@@ -111,9 +136,9 @@ const trips = ({navigation}) => {
                 selectedButtonStyle={{backgroundColor:'#062b3d'}}
                 containerStyle={styles.tabs}
                 />
-            {allTrips.length && !noShipmentFlag ? <ShipmentCard  
-                   style={{flex:1}} trips={allTrips} navigation={navigation}/> : null} 
-                   {!noShipmentFlag && !allTrips.length ? <ActivityIndicator  size="large" color="#062b3d"></ActivityIndicator>: null}
+            {state.trips.visibleTrips?.length ? <ShipmentCard  
+                   style={{flex:1}} trips={state.trips.visibleTrips} navigation={navigation}/> : null} 
+                   {!noShipmentFlag && !state.trips.visibleTrips?.length ? <ActivityIndicator  size="large" color="#062b3d"></ActivityIndicator>: null}
                    {noShipmentFlag ? <Text style={styles.emptyShipment}>No Shipment available !</Text>: null}
             {showDatePicker ? <DateTimePicker
                 testID="dateTimePicker"

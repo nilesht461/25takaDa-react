@@ -11,7 +11,7 @@ const screens = {
         screen: Collection,
         navigationOptions:  ({navigation}) => {
             return  {
-                headerTitle: () => <Headers navigation={navigation} title="25taka Collection"/>
+                headerTitle: () => <Headers navigation={navigation} title="25taka Delivery"/>
             }
         }
            

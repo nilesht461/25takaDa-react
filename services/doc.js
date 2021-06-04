@@ -34,4 +34,13 @@ export default doc = {
     "required" : false
 
 },
+"DRUGLICENSE" : { 
+    "url" : '',
+    "backUrl": '',
+    'status': '',
+    "number" : '',
+    "checked": false,
+    "required" : false
+
+},
 }

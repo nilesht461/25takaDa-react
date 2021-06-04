@@ -16,9 +16,10 @@ export async function getActiveShipmentsByDate(uid,startTime,endTime) {
 }
 export async function getOrderDetails(id) {
     return rootDB
-        .collection('orders').where('orderId', '==', id).limit(1).get()
+        .collection('orders').doc(id).get()
 }
 export async function getTotalPaymentByDate(uid,startTime,endTime) {
+    console.log(uid,startTime,endTime)
     return rootDB.collection('payments').where('addedBy', '==', uid).where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
 }
 
@@ -29,13 +30,17 @@ export async function getOrderItems(id) {
 }
 export async function getShopDetails(id) {
     return rootDB
-        .collection('shops').where('shopId', '==', id).limit(1).get()
+        .collection('shops').doc(id).get()
+}
+export async function getDAappUtils() {
+    return firestore().collection('utils').doc('da_app').get()
 }
 export async function updateShops(sid, data) {
     return rootDB
         .collection('shops').doc(sid)
         .set(data, { merge: true })
 }
+
 export async function addTransactions(data) {
     let db = rootDB.collection('transactions');
     const id = db.doc().id;
