@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {View,Text,StyleSheet,RefreshControl} from 'react-native';
+import {View,Text,StyleSheet,RefreshControl,ScrollView} from 'react-native';
 import { Card,Input,BottomSheet ,ButtonGroup} from 'react-native-elements';
 import {getFinishedShipmentsByDate, getOrderDetails, getShipments, getShopDetails,getActiveShipmentsByDate} from '../services/shipment';
 import auth from '@react-native-firebase/auth';
@@ -17,6 +17,7 @@ const trips = ({navigation}) => {
     const state = useSelector(state => state);
     // console.log(state)
     const dispatch = useDispatch();
+    let [showBusy,setShowBusy] = useState(false);
     const [user,setUser] = useState(auth().currentUser);
     const [date, setDate] = useState(moment().format("DD/MM/YYYY"));
     const value = navigation.getParam('data', false);
@@ -42,6 +43,11 @@ const trips = ({navigation}) => {
         await getShipmentData('CANCELED');
         setSpinner(false)
         
+    }
+    const refreshData = async() => {
+        setShowBusy(true);
+        loadData();
+        setShowBusy(false);
     }
     const updateIndex  = (selectedIndex) => {
         setNoShipmentFlag(false)
@@ -137,9 +143,14 @@ const trips = ({navigation}) => {
                 containerStyle={styles.tabs}
                 />
             {state.trips.visibleTrips?.length ? <ShipmentCard  
-                   style={{flex:1}} trips={state.trips.visibleTrips} navigation={navigation}/> : null} 
+                   style={{flex:1}} loadData={loadData} trips={state.trips.visibleTrips} navigation={navigation}/> : null} 
                    {!noShipmentFlag && !state.trips.visibleTrips?.length ? <ActivityIndicator  size="large" color="#062b3d"></ActivityIndicator>: null}
-                   {noShipmentFlag ? <Text style={styles.emptyShipment}>No Shipment available !</Text>: null}
+                   <ScrollView   refreshControl={
+                    <RefreshControl
+                        refreshing={showBusy}
+                        onRefresh={() => refreshData()}
+                      /> } >{noShipmentFlag ? <Text style={styles.emptyShipment}>No Shipment available !</Text>: null}
+                      </ScrollView>
             {showDatePicker ? <DateTimePicker
                 testID="dateTimePicker"
                 value={new Date(moment(date, 'DD/MM/YYYY').valueOf())}

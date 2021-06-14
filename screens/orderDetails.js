@@ -87,7 +87,7 @@ const OrderDetails = ({ navigation }) => {
                 ToastAndroid.SHORT,
                 ToastAndroid.CENTER
               );
-            updateState('cancelled')
+            updateState(status)
             navigation.goBack();
             
         })
@@ -96,8 +96,8 @@ const OrderDetails = ({ navigation }) => {
         let index = state.trips.activeTrips.findIndex(item => {
             return item.orderNo == trip.orderNo;
         })
-        if(type == 'cancelled') {
-        state.trips.activeTrips[index].status = 'CANCELED';
+        state.trips.activeTrips[index].status = type;
+        if(type != 'FINISHED') {
         state.trips.cancelledTrips = [state.trips.activeTrips[index],...state.trips.cancelledTrips ];
         state.trips.activeTrips.splice(index,1);
         let trips = {
@@ -116,8 +116,7 @@ const OrderDetails = ({ navigation }) => {
         }
         dispatch({type: 'updateCount',payload:{count:count}})
     }
-    if(type == 'finished') {
-        state.trips.activeTrips[index].status = 'FINISHED';
+    if(type == 'FINISHED') {
         state.trips.finishedTrips = [state.trips.activeTrips[index],...state.trips.finishedTrips];
         state.trips.activeTrips.splice(index,1);
         let trips = {
@@ -149,7 +148,7 @@ const OrderDetails = ({ navigation }) => {
         )
     }
     const updateOrder = (data, sdata) =>  {
-        updateDelivery([], data,sdata,trip.order)
+        updateDelivery([], data,sdata,trip)
       }
     const   markDelivered = async() => {
         if (trip.order.paymentStatus === 'COD' || trip.order.pendingAmount > trip.order.creditUsed) {
@@ -170,7 +169,7 @@ const OrderDetails = ({ navigation }) => {
               location: location
             }
             updateOrder(data, sdata);
-            updateState('finished')
+            updateState('FINISHED')
             ToastAndroid.showWithGravity(
                 `Order successfully  marked as Delivered`,
                 ToastAndroid.LONG,

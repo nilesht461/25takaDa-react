@@ -1,26 +1,30 @@
 import firestore from '@react-native-firebase/firestore';
 import axios from 'axios';
-let rootDB = firestore().collection('debug').doc('demo');
-export async function getShipments(uid, type,startTime,endTime) {
-    console.log(startTime,endTime)
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', type).where('timestamp','>=',startTime).where('timestamp','<=',endTime).orderBy('timestamp', 'desc').get();
+let rootDB = firestore();
+export async function getShipments(uid, type, startTime, endTime) {
+    console.log(startTime, endTime)
+    if (type == 'CANCELED') {
+        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', 'in', ["CANCELED","SHOP_CLOSED","NOT_ATTEMPTED"]).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
+    } else {
+        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', type).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
+    }
 }
-export async function getTotalShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+export async function getTotalShipmentsByDate(uid, startTime, endTime) {
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
-export async function getFinishedShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', 'FINISHED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+export async function getFinishedShipmentsByDate(uid, startTime, endTime) {
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', 'FINISHED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
-export async function getActiveShipmentsByDate(uid,startTime,endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type","==","DA").where('status', '==', 'ASSIGNED').where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+export async function getActiveShipmentsByDate(uid, startTime, endTime) {
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', 'ASSIGNED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
 export async function getOrderDetails(id) {
     return rootDB
         .collection('orders').doc(id).get()
 }
-export async function getTotalPaymentByDate(uid,startTime,endTime) {
-    console.log(uid,startTime,endTime)
-    return rootDB.collection('payments').where('addedBy', '==', uid).where('timestamp','>=',startTime).where('timestamp','<=',endTime).get();
+export async function getTotalPaymentByDate(uid, startTime, endTime) {
+    console.log(uid, startTime, endTime)
+    return rootDB.collection('payments').where('addedBy', '==', uid).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
 
 export async function getOrderItems(id) {
@@ -84,7 +88,7 @@ export async function getUpiPaymentStatus(txnId) {
     }
     return axios.post(url, data).then(res => { return res.data });
 }
-export async function updateDelivery(paymentInfo,orderInfo,shipmentData,order) {
+export async function updateDelivery(paymentInfo, orderInfo, shipmentData,trip) {
     let wBatch = firestore().batch();
     const roDB = rootDB
     // this.firestore.collection('debug').doc('test')
@@ -99,13 +103,13 @@ export async function updateDelivery(paymentInfo,orderInfo,shipmentData,order) {
         wBatch.set(bRef, p, { merge: true })
     });
 
-    if (shipmentData && order.hasOwnProperty('shipmentId')) {
-        let shRef = roDB.collection('shipments').doc(order.shipmentId)
+    if (shipmentData && trip.order.hasOwnProperty('shipmentId')) {
+        let shRef = roDB.collection('shipments').doc(trip.shipmentId)
         wBatch.set(shRef, shipmentData, { merge: true })
     }
-    if(Object.keys(orderInfo).length) {
-    let cbRef = roDB.collection('orders').doc(order.orderId)
-    wBatch.set(cbRef, orderInfo, { merge: true })
+    if (Object.keys(orderInfo).length) {
+        let cbRef = roDB.collection('orders').doc(trip.order.orderId)
+        wBatch.set(cbRef, orderInfo, { merge: true })
     }
     let refB = wBatch.commit()
     return await Promise.all([refB]).then((res) => {

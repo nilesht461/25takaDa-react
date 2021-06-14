@@ -15,9 +15,11 @@ import {updateCount,updateTrips} from '../services/helper';
 import { useDispatch,useSelector } from 'react-redux';
 import {updateDelivery} from '../services/shipment';
 import Spinner from 'react-native-loading-spinner-overlay';
+import { LogBox } from 'react-native';
 import { addTransactions, updateQRCode, updateSignature, getUpiPaymentStatus } from '../services/shipment';
 const Payments = ({ navigation }) => {
     const trip = navigation.getParam('data', {});
+    LogBox.ignoreLogs(['VirtualizedLists should never be nested']);
     const state = useSelector(state => state);
     let [txnId, setTxnId] = useState(null);
     let [spinner,setSpinner] = useState(false);
@@ -45,7 +47,7 @@ const Payments = ({ navigation }) => {
             alert("enter a valid amount")
             return
         }
-        if (inputAmount > amount) {
+        if (Number(inputAmount) > amount) {
             alert("enter a valid amount")
             return;
         }
@@ -88,7 +90,9 @@ const Payments = ({ navigation }) => {
                 if (inputAmount == Math.floor(trip.order.receivableAmount - trip.order.creditUsed)) {
                     alert('full payment made via UPI');
                     setBardCode(null);
+                    setSaveLoader(true)
                     setVerify(false);
+                    paymentApi();
                     return;
                 } else {
                     alert(`payment of Rs ${inputAmount} made via UPI`);
@@ -257,36 +261,38 @@ const Payments = ({ navigation }) => {
                 },
                 {
                     text: "OK", onPress: async () => {
-                        Geolocation.getCurrentPosition(async(resp) => {
-                            // setSaveLoader(true);
-                            let location = {};
-                            location.lat = resp.coords.latitude;
-                            location.lng = resp.coords.longitude
-                            const data = {
-                                status: "DELIVERED",
-                                deliveredAt: moment().toDate()
-                            }
-                            const shipmentData = {
-                                status: "FINISHED",
-                                endTime: moment().toDate(),
-                                location: location
-                            }
-                            // console.log(paymentData);
-                            await updateDelivery(paymentData, data, shipmentData, trip.order);
-                            // setSaveLoader(false);
-                            ToastAndroid.showWithGravity(
-                                `OrderNo. ${trip.orderNo} successfully  marked as Delivered`,
-                                ToastAndroid.LONG,
-                                ToastAndroid.CENTER
-                              );
-                            setSaveLoader(false);
-                            updateState('finished')
-                            navigation.navigate('Trips');
-                        })
+                        paymentApi();
                     }
                 }
             ])
 
+    }
+    const paymentApi = () => {
+        Geolocation.getCurrentPosition(async(resp) => {
+            // setSaveLoader(true);
+            let location = {};
+            location.lat = resp.coords.latitude;
+            location.lng = resp.coords.longitude
+            const data = {
+                status: "DELIVERED",
+                deliveredAt: moment().toDate()
+            }
+            const shipmentData = {
+                status: "FINISHED",
+                endTime: moment().toDate(),
+                location: location
+            }
+            // console.log(paymentData);
+            await updateDelivery(paymentData, data, shipmentData, trip);
+            // setSaveLoader(false);
+            ToastAndroid.showWithGravity(
+                `OrderNo. ${trip.orderNo} successfully  marked as Delivered`,
+                ToastAndroid.LONG,
+                ToastAndroid.CENTER
+              );
+            updateState('finished')
+            navigation.navigate('Trips');
+        })
     }
     const updateState=(type) => {
         let index = state.trips.activeTrips.findIndex(item => {
@@ -315,6 +321,7 @@ const Payments = ({ navigation }) => {
 }
     return (
         <View style={{ flexDirection: 'column', flex: 1 }}>
+            <ScrollView>
             <Card containerStyle={styles.card}>
                 <Text style={styles.payment}>Payable Amount : ₹{Math.floor(trip.order.receivableAmount - trip.order.creditUsed).toFixed(2)} </Text>
             </Card>
@@ -386,6 +393,7 @@ const Payments = ({ navigation }) => {
 
 
             </Card>
+            </ScrollView>
             <View style={{ flexDirection: 'row', marginVertical: 10 }}>
                 {amount > 0 && showPayLater && <TouchableOpacity style={[styles.button]}><Text style={styles.buttonText}>PAY LATER</Text></TouchableOpacity>}
                 {selectedPaymentMethod == 'UPI' && amount > 0 && !verify ? <TouchableOpacity onPress={() => addPayment()} style={[styles.button, { backgroundColor: '#062b3d' }]}><Text style={styles.buttonText}>VERIFY</Text></TouchableOpacity> :
