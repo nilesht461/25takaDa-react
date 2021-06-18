@@ -24,6 +24,8 @@ const SignUp  = (props) => {
       deviceObj.os = await DeviceInfo.getApiLevel();
       deviceObj.androidVersion = await DeviceInfo.getSystemVersion();
       deviceObj.deviceId = await DeviceInfo.getAndroidId();
+      deviceObj.appVersion = await DeviceInfo.getVersion();
+      deviceObj.appName = "25taka DA";
             if(formdata.firstName != '' && formdata.lastName != '') {
               setSaveloader(true)
               let user = auth().currentUser;
@@ -35,7 +37,7 @@ const SignUp  = (props) => {
                     "role" : 'DRIVER',
                     "verified" : true,
                     "createdAt" : `${Date.now()}`,
-                    'deviceInfo':[deviceObj]
+                    'deviceInfo':[deviceObj],
 
                 }
                 await addUser(obj);
@@ -61,6 +63,8 @@ const SignUp  = (props) => {
               deviceObj.os = await DeviceInfo.getApiLevel();
               deviceObj.androidVersion = await DeviceInfo.getSystemVersion();
               deviceObj.deviceId = await DeviceInfo.getAndroidId();
+              deviceObj.appVersion = await DeviceInfo.getVersion();
+              deviceObj.appName = "25taka DA";
             await addUser({"userId": user.uid,'deviceInfo': firestore.FieldValue.arrayUnion(deviceObj)});
             props.navigation.navigate('App');
             setShowBusy(false);

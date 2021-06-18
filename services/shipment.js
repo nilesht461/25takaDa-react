@@ -1,22 +1,25 @@
 import firestore from '@react-native-firebase/firestore';
 import axios from 'axios';
-let rootDB = firestore();
-export async function getShipments(uid, type, startTime, endTime) {
+let rootDB = firestore().collection('debug').doc('demo');
+export async function getActiveTrip(uid,startTime,endTime) {
+    return rootDB.collection('trips').where('userId', '==', uid).where("status", "in", ["ASSIGNED","ACTIVE"]).where('timestamp', '>=', startTime).where("type","==",'DA').where('timestamp', '<=', endTime).get();
+}
+export async function getShipments(uid, type, tripId, startTime, endTime) {
     console.log(startTime, endTime)
     if (type == 'CANCELED') {
-        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', 'in', ["CANCELED","SHOP_CLOSED","NOT_ATTEMPTED"]).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
+        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where("tripId","==",tripId).where('status', 'in', ["CANCELED","SHOP_CLOSED","NOT_ATTEMPTED"]).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
     } else {
-        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', type).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
+        return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', type).where("tripId","==",tripId).where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).orderBy('timestamp', 'desc').get();
     }
 }
 export async function getTotalShipmentsByDate(uid, startTime, endTime) {
     return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
-export async function getFinishedShipmentsByDate(uid, startTime, endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', 'FINISHED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
+export async function getFinishedShipmentsByDate(uid,tripId,startTime, endTime) {
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("tripId","==",tripId).where("type", "==", "DA").where('status', '==', 'FINISHED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
-export async function getActiveShipmentsByDate(uid, startTime, endTime) {
-    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where('status', '==', 'ASSIGNED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
+export async function getActiveShipmentsByDate(uid,tripId,startTime, endTime) {
+    return rootDB.collection('shipments').where('driverId', '==', uid).where("type", "==", "DA").where("tripId","==",tripId).where('status', '==', 'ASSIGNED').where('timestamp', '>=', startTime).where('timestamp', '<=', endTime).get();
 }
 export async function getOrderDetails(id) {
     return rootDB
@@ -103,7 +106,7 @@ export async function updateDelivery(paymentInfo, orderInfo, shipmentData,trip) 
         wBatch.set(bRef, p, { merge: true })
     });
 
-    if (shipmentData && trip.order.hasOwnProperty('shipmentId')) {
+    if (shipmentData) {
         let shRef = roDB.collection('shipments').doc(trip.shipmentId)
         wBatch.set(shRef, shipmentData, { merge: true })
     }
@@ -114,5 +117,13 @@ export async function updateDelivery(paymentInfo, orderInfo, shipmentData,trip) 
     let refB = wBatch.commit()
     return await Promise.all([refB]).then((res) => {
         return res
+    })
+}
+
+export async function addComment(obj) {
+    return await rootDB.collection('orders').doc(obj.orderId)
+    .set(obj, { merge: true })
+    .then(function () {
+        return obj;
     })
 }

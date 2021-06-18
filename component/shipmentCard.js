@@ -7,10 +7,13 @@ import Spinner from 'react-native-loading-spinner-overlay';
 import Geolocation from '@react-native-community/geolocation';
 import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
+import { Alert } from 'react-native';
+import RNAndroidLocationEnabler from 'react-native-android-location-enabler';
 const ShipmentCard = ({ trips, navigation, loadData }) => {
     let [isVisible, setIsVisible] = useState(false);
     const state = useSelector(state => state);
     const dispatch = useDispatch();
+    const [showBusy,setShowBusy] = useState(false);
     let [selectedTrip, setSelectedTrip] = useState(null);
     let [verification, setVerification] = useState({ docVerify: true, handshake: true, shopImage: true });
     const [spinner, setSpinner] = useState(false);
@@ -23,7 +26,7 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
             title: 'Cancel Order',
             onPress: () => {
                 markOrderCancel('CANCELED')
-                setIsVisible(false);
+                setIsCancelVisible(false);
             }
         },
         {
@@ -69,7 +72,15 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
                 ToastAndroid.CENTER
             );
             updateState(status)
-        })
+        },
+        (error) => {
+            ToastAndroid.showWithGravity(
+                `Please enable Location permission`,
+                ToastAndroid.SHORT,
+                ToastAndroid.CENTER
+            );
+        }
+        )
     }
     const updateState = (type) => {
         let index = state.trips.activeTrips.findIndex(item => {
@@ -99,8 +110,8 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
         console.log('clicked');
         let aadharStatus = '';
         let panStatus = '';
-        let shop = await getShopDetails(trip.shop.shopId);
-        let order = await getOrderDetails(trip.order.orderId);
+        let shop = await getShopDetails(trip.shopId);
+        let order = await getOrderDetails(trip.orderId);
         trip.order = order.data();
         trip.shop = shop.data();
         let verfication = { docVerify: true, handshake: true, shopImage: true };
@@ -109,12 +120,13 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
         setSpinner(false);
         // console.log(selectedTrip.shop.shopImage)
         setSelectedTrip(trip);
-        if (selectedTrip.status == "FINISHED") {
+        if (selectedTrip.status != "ASSIGNED") {
             routeToDelivery(trip);
             return;
         }
         if (!trip.shop.shopImage) {
             // console.log('it ran ',trip.shop)
+            verification.docVerify = true;
             setVerification({ ...verification, ['shopImage']: false });
             setIsVisible(true);
             return;
@@ -161,26 +173,34 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
         }
         routeToDelivery(trip);
     }
+    const navigateToShop = async(item) => {
+        setSpinner(true);
+        console.log(item)
+        let shop = await getShopDetails(item.shopId);
+        item.shop = shop.data();
+        setSpinner(false);
+        navigation.navigate('ShopDetail', { "data": item.shop, "orderNo": item.orderNo }) 
+    }
     const renderItems = ({ item }) => {
         return (<Card containerStyle={styles.Card}>
-            <TouchableOpacity><Card.Title onPress={() => item.status == 'ASSIGNED' ? onOrderClick(item) : routeToDelivery(item)} style={styles.title}>{item.orderNo}</Card.Title></TouchableOpacity>
+            <Card.Title onPress={() => onOrderClick(item)} style={styles.title}>{item.orderNo}</Card.Title>
             <Card.Divider></Card.Divider>
-            <Text style={styles.name} onPress={() => { navigation.navigate('ShopDetail', { "data": item.shop, "orderNo": item.orderNo }) }}>{item.shop.name}</Text>
-            <Text style={styles.address}>{item.order.deliveryAddress.line1},{item.order.deliveryAddress.landmark},{item.order.deliveryAddress.city},{item.order.deliveryAddress.state},{item.order.deliveryAddress.pincode}</Text>
-            <View style={{ flexDirection: 'row', height: 30 }}>
-                <Text style={styles.number} onPress={() => Linking.openURL(`tel:${item.shop.contacts[0].phone}`)}>{item.shop.contacts[0].phone}</Text>
-                <TouchableOpacity onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=' + item.shop.location.lat + ',' + item.shop.location.lng, '_system')}><Icon style={styles.icon} name="location-arrow"></Icon></TouchableOpacity>
+            <Text style={styles.name} onPress={() => navigateToShop(item)}>{item.shopName}</Text>
+            {item.shopDetails ? <Text style={styles.address}>{item.shopDetails.address.line1},{item.shopDetails.address.landmark},{item.shopDetails.address.city},{item.shopDetails.address.state},{item.shopDetails.address.pincode}</Text>:null}
+            <View style={{ flexDirection: 'row',height:30 }}>
+                <Text style={styles.number} onPress={() => Linking.openURL(`tel:${item.shopDetails.phoneNumber}`)}>Call Shop <Icon   name="phone" size={14} color="#3880ff" /></Text>
+                <TouchableOpacity onPress={() => Linking.openURL('https://www.google.com/maps/search/?api=1&query=' + item.shopDetails.location.lat + ',' + item.shopDetails.location.lng, '_system')}><Icon style={styles.icon} name="location-arrow"></Icon></TouchableOpacity>
             </View>
-            {item.dsrName && item.dsrNumber ?
-                <View style={{ flexDirection: 'row', marginBottom: 7 }}>
-                    <Text style={styles.dsr}>Sales Exec:- </Text>
-                    <Text style={styles.dsr1} >{item.dsrName}</Text>
-                    <TouchableOpacity style={{ paddingHorizontal: 4, borderWidth: 1, borderRadius: 5 }} onPress={() => Linking.openURL(`tel:${item.dsrNumber}`)} >
-                        <Icon style={{ marginTop: 3 }} name="phone" size={10} color="#062b3d" />
-                    </TouchableOpacity>
-                </View> : null}
-            <Text style={[styles.basic, item.status == 'ASSIGNED' ? styles.active : item.status == 'FINISHED' ? styles.finished : styles.canceled]} >{item.status}</Text>
-        </Card>
+            {item.dsrName && item.dsrNumber ? 
+            <View style={{flexDirection: 'row',marginBottom:7}}>
+                <Text style={styles.dsr}>Sales Exec:- </Text>
+                <Text style={styles.dsr1} >{item.dsrName}</Text>
+                <TouchableOpacity style={{paddingHorizontal:4,borderWidth:1,borderRadius:5}} onPress={() => Linking.openURL(`tel:${item.dsrNumber}`)} >
+                <Icon style={styles.call} name="phone" size={10} color="#062b3d" />
+                </TouchableOpacity>
+            </View> : null}
+            <Text style={[styles.basic,item.status == 'ASSIGNED' ? styles.active: item.status == 'FINISHED' ? styles.finished : styles.canceled ]} >{item.status}</Text>     
+             </Card>
         )
     }
     const switchToPod = () => {
@@ -190,8 +210,24 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
         navigation.navigate('OrderDetails', { "data": obj })
     }
     const cancelShipment = () => {
-        setIsVisible(false);
-        setIsCancelVisible(true)
+        RNAndroidLocationEnabler.promptForEnableLocationIfNeeded({
+            interval: 10000,
+            fastInterval: 5000,
+          })
+            .then((data) => {
+                if(data == "enabled" || data == "already-enabled") {
+                    setIsVisible(false);
+                    setIsCancelVisible(true)
+                }
+            })
+            .catch((err) => {
+             
+            });
+    }
+    const refreshData = async() => {
+        setShowBusy(true);
+        await loadData();
+        setShowBusy(false)
     }
     return (
         <View>
@@ -202,8 +238,8 @@ const ShipmentCard = ({ trips, navigation, loadData }) => {
             <FlatList
                 refreshControl={
                     <RefreshControl
-                        // refreshing={showBusy}
-                        onRefresh={() => loadData()}
+                        refreshing={showBusy}
+                        onRefresh={() => refreshData()}
                     />}
                 data={trips}
                 style={{ flex: 0, marginBottom: 100 }}

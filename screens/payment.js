@@ -15,6 +15,7 @@ import {updateCount,updateTrips} from '../services/helper';
 import { useDispatch,useSelector } from 'react-redux';
 import {updateDelivery} from '../services/shipment';
 import Spinner from 'react-native-loading-spinner-overlay';
+import RNAndroidLocationEnabler from 'react-native-android-location-enabler';
 import { LogBox } from 'react-native';
 import { addTransactions, updateQRCode, updateSignature, getUpiPaymentStatus } from '../services/shipment';
 const Payments = ({ navigation }) => {
@@ -63,6 +64,8 @@ const Payments = ({ navigation }) => {
             addedBy: user.uid,
             trxnStatus: "SUCCESS",
             type: "CREDIT",
+            source:'DA',
+            tripId:trip.tripId
         }
         if (selectedPaymentMethod == "CHEQUE") {
             if (chequeData.number == '' || chequeData.bank == '' || chequeData.image == '') {
@@ -194,7 +197,9 @@ const Payments = ({ navigation }) => {
             shopId: trip.shop.shopId,
             amount: Number(inputAmount),
             status: 'SUCCESS',
-            userId: user.uid
+            userId: user.uid,
+            tripId:trip.tripId,
+            source:"DA"
         }
         let tempId = await addTransactions(obj);
         setTxnId(tempId);
@@ -241,58 +246,79 @@ const Payments = ({ navigation }) => {
         setLoader(false)
     }
     const saveData = async () => {
-        let totalAmount = 0;
-        for (let i = 0; i < paymentData.length; i++) {
-            totalAmount = totalAmount + paymentData[i].amount;
-            if(paymentData[i].mode == 'UPI'){
-                paymentData.splice(i,1);
-            }
-        }
-        totalAmount = Math.round(totalAmount);
-        setSaveLoader(true)
-        Alert.alert(
-            "25taka",
-            `Please make sure that you have  collected ₹${totalAmount}`,
-            [
-                {
-                    text: "Cancel",
-                    onPress: () => setSaveLoader(false),
-                    style: "cancel"
-                },
-                {
-                    text: "OK", onPress: async () => {
-                        paymentApi();
+        RNAndroidLocationEnabler.promptForEnableLocationIfNeeded({
+            interval: 10000,
+            fastInterval: 5000,
+          })
+            .then((data) => {
+                if(data == "enabled" || data == "already-enabled") {
+                    let totalAmount = 0;
+                    for (let i = 0; i < paymentData.length; i++) {
+                        totalAmount = totalAmount + paymentData[i].amount;
+                        if(paymentData[i].mode == 'UPI'){
+                            paymentData.splice(i,1);
+                        }
                     }
+                    totalAmount = Math.round(totalAmount);
+                    setSaveLoader(true)
+                    Alert.alert(
+                        "25taka",
+                        `Please make sure that you have  collected ₹${totalAmount}`,
+                        [
+                            {
+                                text: "Cancel",
+                                onPress: () => setSaveLoader(false),
+                                style: "cancel"
+                            },
+                            {
+                                text: "OK", onPress: async () => {
+                                    paymentApi();
+                                }
+                            }
+                        ])
                 }
-            ])
+            })
+            .catch((err) => {
+             
+            });
 
     }
     const paymentApi = () => {
-        Geolocation.getCurrentPosition(async(resp) => {
-            // setSaveLoader(true);
-            let location = {};
-            location.lat = resp.coords.latitude;
-            location.lng = resp.coords.longitude
-            const data = {
-                status: "DELIVERED",
-                deliveredAt: moment().toDate()
-            }
-            const shipmentData = {
-                status: "FINISHED",
-                endTime: moment().toDate(),
-                location: location
-            }
-            // console.log(paymentData);
-            await updateDelivery(paymentData, data, shipmentData, trip);
-            // setSaveLoader(false);
-            ToastAndroid.showWithGravity(
-                `OrderNo. ${trip.orderNo} successfully  marked as Delivered`,
-                ToastAndroid.LONG,
-                ToastAndroid.CENTER
-              );
-            updateState('finished')
-            navigation.navigate('Trips');
-        })
+                
+                    Geolocation.getCurrentPosition(async(resp) => {
+                        // setSaveLoader(true);
+                        let location = {};
+                        location.lat = resp.coords.latitude;
+                        location.lng = resp.coords.longitude
+                        const data = {
+                            status: "DELIVERED",
+                            deliveredAt: moment().toDate()
+                        }
+                        const shipmentData = {
+                            status: "FINISHED",
+                            endTime: moment().toDate(),
+                            location: location
+                        }
+                        // console.log(paymentData);
+                        await updateDelivery(paymentData, data, shipmentData, trip);
+                        // setSaveLoader(false);
+                        ToastAndroid.showWithGravity(
+                            `OrderNo. ${trip.orderNo} successfully  marked as Delivered`,
+                            ToastAndroid.LONG,
+                            ToastAndroid.CENTER
+                          );
+                        updateState('finished')
+                        navigation.navigate('Trips');
+                    },
+                    (error) => {
+                        setSaveLoader(false)
+                        ToastAndroid.showWithGravity(
+                            `Please enable Location permission`,
+                            ToastAndroid.LONG,
+                            ToastAndroid.CENTER
+                          );
+                    })
+    
     }
     const updateState=(type) => {
         let index = state.trips.activeTrips.findIndex(item => {

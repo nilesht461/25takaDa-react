@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {View,Text,StyleSheet,RefreshControl,ScrollView} from 'react-native';
 import { Card,Input,BottomSheet ,ButtonGroup} from 'react-native-elements';
-import {getFinishedShipmentsByDate, getOrderDetails, getShipments, getShopDetails,getActiveShipmentsByDate} from '../services/shipment';
+import {getFinishedShipmentsByDate, getOrderDetails,getActiveTrip,getShipments, getShopDetails,getActiveShipmentsByDate} from '../services/shipment';
 import auth from '@react-native-firebase/auth';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import moment from 'moment';
@@ -33,15 +33,25 @@ const trips = ({navigation}) => {
       }, [navigation]);
     const loadData = async() => {
         setNoShipmentFlag(false);
-        setSelectedIndex(0)
-        dispatch({type: 'updateCount',payload:{count:{'activeTrips' : 0,'finishedTrips':0,'cancelledTrips': 0 }}})
-        dispatch({type: 'updateTrips',payload:{trips:{'activeTrips' : [],'finishedTrips':[],'cancelledTrips': [],'visibleTrips':[] }}})
-        await getallTripCounts();
-        await getShipmentData('ASSIGNED');
-        setSpinner(true);
-        await  getShipmentData('FINISHED');
-        await getShipmentData('CANCELED');
-        setSpinner(false)
+        setSelectedIndex(0);
+        globalDate.tripDate.startTime.setHours(0,0,0,0);
+        globalDate.tripDate.endTime.setHours(23,59,59,59);
+        let tripdata = await getActiveTrip(user.uid,globalDate.tripDate.startTime,globalDate.tripDate.endTime);
+        if(tripdata.docs.length == 0) {
+            setNoShipmentFlag(true);
+            dispatch({ type: 'updateCount', payload: { count: { 'activeTrips': 0, 'finishedTrips': 0, 'cancelledTrips': 0 } } })
+            dispatch({ type: 'updateTrips', payload: { trips: { 'activeTrips': [], 'finishedTrips': [], 'cancelledTrips': [], 'visibleTrips': [] } } })
+            return;
+        }
+        tripdata.docs.forEach(async (element) => {
+            await getallTripCounts(element.data().tripId);
+            await getShipmentData('ASSIGNED',element.data().tripId);
+            setSpinner(true);
+            await  getShipmentData('FINISHED',element.data().tripId);
+            await getShipmentData('CANCELED',element.data().tripId);
+            setSpinner(false)
+        });
+       
         
     }
     const refreshData = async() => {
@@ -75,16 +85,16 @@ const trips = ({navigation}) => {
             dispatch({type: 'updateTrips',payload:{trips:trips}})
         }
       }
-   const getallTripCounts = async() => {
+   const getallTripCounts = async(tripId) => {
             // setDate(moment(startTime).format("DD/MM/YYYY"))
-            let count = await updateCount()
+            let count = await updateCount(tripId)
             dispatch({type: 'updateCount',payload:{count:count}})
             
    }
-   const getShipmentData = async(type) => {
+   const getShipmentData = async(type,tripId) => {
     let trips = {};
     if(type =='ASSIGNED') {
-        state.trips.activeTrips = await updateTrips(type);
+        state.trips.activeTrips = await updateTrips(type,tripId);
         if(state.trips.activeTrips.length == 0) {
             setNoShipmentFlag(true)
         }
@@ -96,7 +106,7 @@ const trips = ({navigation}) => {
     }
 }
     if(type =='FINISHED') {
-        state.trips.finishedTrips = await updateTrips(type);
+        state.trips.finishedTrips = await updateTrips(type,tripId);
         trips = {
             'activeTrips':state.trips.activeTrips,
             'finishedTrips': state.trips.finishedTrips,
@@ -105,7 +115,7 @@ const trips = ({navigation}) => {
         }
         }
         if(type =='CANCELED') {
-            state.trips.cancelledTrips = await updateTrips(type);;
+            state.trips.cancelledTrips = await updateTrips(type,tripId);;
              trips = {
                 'activeTrips':state.trips.activeTrips,
                 'finishedTrips': state.trips.finishedTrips,
